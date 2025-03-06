@@ -1,4 +1,5 @@
 opencv-python-headless==4.7.0.72
+streamlit==1.30.0
 tensorflow==2.17.1
 numpy
 pandas
