@@ -1,8 +1,6 @@
 # 🚀 Automated Gender Classification Using CNN 👩👨  
 ![header](1.jpg) *<!-- Replace with your actual header image -->*
-
-This project implements a **Convolutional Neural Network (CNN)** to classify images based on gender. The model predicts between two classes:  
-🔴 **Female (👩)** | 🟢 **Male (👨)**  
+Automated gender classification using facial recognition is a computer vision application that utilizes deep learning models, particularly Convolutional Neural Networks (CNNs), to determine an individual’s gender based on facial images. The system is designed to process, analyze, and classify facial images as either Male (👨) or Female (👩)
 
 The entire pipeline includes:
 - **Data preprocessing** (resizing, normalization)
