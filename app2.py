@@ -1,8 +1,9 @@
 import streamlit as st
-import cv2
+import av
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 st.title("Automated Gender Classification Using Facial Recognition")
 st.write("Use your webcam for real-time gender classification.")
@@ -15,57 +16,40 @@ def load_model():
 model = load_model()
 
 # أسماء الفئات
-class_names = ["Female", "Male"]  # يجب أن يكون ترتيبها مطابقًا لترتيب تدريب الموديل
+class_names = ["Female", "Male"]
 
-# التحكم في حالة تشغيل الكاميرا باستخدام session_state
-if 'camera_active' not in st.session_state:
-    st.session_state.camera_active = False
+# تعريف كلاس لمعالجة الفيديو في الزمن الحقيقي
+class VideoProcessor(VideoTransformerBase):
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")  # تحويل الإطار إلى numpy array
 
-# زر تشغيل/إيقاف الكاميرا
-if st.button("Start Camera"):
-    st.session_state.camera_active = True
-
-if st.button("Stop Camera"):
-    st.session_state.camera_active = False
-
-# فتح كاميرا الويب في حالة التشغيل فقط
-if st.session_state.camera_active:
-    cap = cv2.VideoCapture(0)
-    stframe = st.empty()
-    
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Failed to capture image from camera")
-            break
+        # تحويل الصورة إلى PIL
+        img_pil = Image.fromarray(img)
+        img_pil = img_pil.resize((64, 64))  # تغيير الحجم إلى المدخل المطلوب للموديل
         
-        # تحويل لون الصورة من BGR إلى RGB (للتوافق مع PIL و TensorFlow)
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(frame_rgb)
-        img = img.resize((64, 64))  # ضبط الأبعاد حسب متطلبات الموديل
-        
-        # تحويل الصورة إلى مصفوفة
-        img_array = np.array(img)
-        if img_array.shape[-1] == 4:  # تحويل RGBA إلى RGB إن لزم الأمر
+        # تحويل الصورة إلى مصفوفة ومعالجتها
+        img_array = np.array(img_pil)
+        if img_array.shape[-1] == 4:  # إذا كانت RGBA نحولها إلى RGB
             img_array = img_array[..., :3]
-        img_array = img_array.astype("float32") / 255.0  # تطبيع الصورة
-        img_array = np.expand_dims(img_array, axis=0)  # إضافة بُعد إضافي
-        
+        img_array = img_array.astype("float32") / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+
         # تنفيذ التنبؤ
         prediction = model.predict(img_array)
         predicted_label = class_names[1] if prediction[0][0] >= 0.5 else class_names[0]
         confidence = prediction[0][0] if prediction[0][0] >= 0.5 else 1 - prediction[0][0]
-        
-        # إضافة النص إلى الإطار
-        text = f"{predicted_label}: {confidence:.2f}"
-        cv2.putText(frame_rgb, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        
-        # عرض الصورة في Streamlit
-        stframe.image(frame_rgb, channels="RGB", use_column_width=True)
-        
-        # التحقق مما إذا تم الضغط على زر الإيقاف
-        if not st.session_state.camera_active:
-            break
 
-    cap.release()
-st.write("Camera stream stopped.")
+        # عرض التنبؤ على الإطار
+        text = f"{predicted_label}: {confidence:.2f}"
+        font_scale = 1
+        thickness = 2
+        color = (0, 255, 0)
+        
+        # إضافة النص إلى الصورة
+        import cv2
+        cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
+        
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+# تشغيل البث عبر WebRTC
+webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
