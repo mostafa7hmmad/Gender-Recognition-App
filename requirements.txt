@@ -1,6 +1,6 @@
 streamlit
 opencv-python-headless
-tensorflow
+tensorflow==2.17.1
 numpy
 pandas
 Pillow
