@@ -1,12 +1,13 @@
 import streamlit as st
-import av
+import cv2
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
+import av
 
 st.title("Automated Gender Classification Using Facial Recognition")
-st.write("Use your webcam for real-time gender classification.")
+st.write("Use your front camera for real-time gender classification.")
 
 # تحميل الموديل المدرب مسبقًا
 @st.cache_resource
@@ -39,17 +40,18 @@ class VideoProcessor(VideoTransformerBase):
         predicted_label = class_names[1] if prediction[0][0] >= 0.5 else class_names[0]
         confidence = prediction[0][0] if prediction[0][0] >= 0.5 else 1 - prediction[0][0]
 
-        # عرض التنبؤ على الإطار
+        # إضافة النص إلى الصورة
         text = f"{predicted_label}: {confidence:.2f}"
         font_scale = 1
         thickness = 2
         color = (0, 255, 0)
         
-        # إضافة النص إلى الصورة
         import cv2
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
         
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
-# تشغيل البث عبر WebRTC
-webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
+# تشغيل البث عبر WebRTC باستخدام الكاميرا الأمامية
+webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_processor_factory=VideoProcessor, rtc_configuration={
+    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+})
