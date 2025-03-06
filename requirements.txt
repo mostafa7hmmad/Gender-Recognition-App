@@ -3,5 +3,6 @@ tensorflow==2.17.1
 opencv-python-headless
 numpy
 pandas
-matplotlib
 Pillow
+streamlit-webrtc
+av
