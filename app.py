@@ -4,40 +4,13 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 
-st.title("Automated-Gender-Classification-Using-Facial-Recognition")
+st.title("Automated Gender Classification Using Facial Recognition")
 st.write("Upload images or use your webcam to predict gender.")
-
 
 # Function to render JavaScript animation
 def render_js_animation():
     animation_code = """
     <div class="container" style="position:relative; height:300px; display:flex; justify-content:center; align-items:center;">
-        <div class="flex">
-            <div class="cube">
-                <div class="wall front"></div>
-                <div class="wall back"></div>
-                <div class="wall left"></div>
-                <div class="wall right"></div>
-                <div class="wall top"></div>
-                <div class="wall bottom"></div>
-            </div>
-            <div class="cube">
-                <div class="wall front"></div>
-                <div class="wall back"></div>
-                <div class="wall left"></div>
-                <div class="wall right"></div>
-                <div class="wall top"></div>
-                <div class="wall bottom"></div>
-            </div>
-            <div class="cube">
-                <div class="wall front"></div>
-                <div class="wall back"></div>
-                <div class="wall left"></div>
-                <div class="wall right"></div>
-                <div class="wall top"></div>
-                <div class="wall bottom"></div>
-            </div>
-        </div>
         <div class="flex">
             <div class="cube">
                 <div class="wall front"></div>
@@ -106,15 +79,13 @@ def render_js_animation():
     """
     st.markdown(animation_code, unsafe_allow_html=True)
 
-
 # Call animation
 render_js_animation()
 
 # Load the pre-trained TensorFlow model
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("Model.h5")
-    return model
+    return tf.keras.models.load_model("Model.h5")
 
 model = load_model()
 
@@ -155,7 +126,10 @@ if images_to_classify:
             # Expand dimensions to match model input shape
             img_array = np.expand_dims(img_array, axis=0)
 
-            # Predict gender using Sigmoid output (fixed issue)
+            # Predict gender using model (Sigmoid output)
+            prediction = model.predict(img_array)
+
+            # Determine label based on Sigmoid output
             predicted_label = "Male" if prediction[0][0] >= 0.5 else "Female"
 
             # Display image and prediction
@@ -172,47 +146,5 @@ if images_to_classify:
 
     # Call animation again to indicate completion
     render_js_animation()
-    with st.spinner("Classifying images..."):
-        for file in images_to_classify:
-            try:
-                img = Image.open(file)
-            except Exception as e:
-                st.error(f"Could not open file {getattr(file, 'name', 'camera_image')}: {e}")
-                continue
 
-            # Resize image
-            img = img.resize((64, 64))
 
-            # Convert to array and normalize
-            img_array = np.array(img)
-            if img_array.shape[-1] == 4:  # Convert RGBA to RGB
-                img_array = img_array[..., :3]
-            img_array = img_array.astype("float32") / 255.0
-
-            # Expand dimensions to match model input shape
-            img_array = np.expand_dims(img_array, axis=0)
-
-            # Predict gender
-            prediction = model.predict(img_array)
-
-            if prediction.shape[-1] == 1:  # Sigmoid output
-                predicted_label = "Male" if prediction[0][0] >= 0.5 else "Female"
-            else:  # Softmax output
-                class_idx = int(np.argmax(prediction[0]))
-                classes = ["Female", "Male"]
-                predicted_label = classes[class_idx]
-
-            # Display image and prediction (Fix: replaced `use_column_width` with `use_container_width`)
-            st.image(img, caption=f"**Prediction:** {predicted_label}", use_container_width=True)
-            results.append((getattr(file, "name", "camera_image"), predicted_label))
-
-    st.success("Classification completed!")
-
-    # Download results as CSV
-    if results:
-        results_df = pd.DataFrame(results, columns=["Filename", "Prediction"])
-        csv_data = results_df.to_csv(index=False)
-        st.download_button("Download Results as CSV", data=csv_data, file_name="classification_results.csv", mime="text/csv")
-
-    # Call animation again to indicate completion
-    render_js_animation()
