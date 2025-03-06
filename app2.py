@@ -9,71 +9,72 @@ import pandas as pd
 st.title("Automated Gender Classification Using Facial Recognition")
 st.write("Take a photo to classify gender for multiple faces.")
 
-# تحميل الموديل المدرب مسبقًا
+# Load pre-trained model
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model("Model.h5")
 
 model = load_model()
 
-# أسماء الفئات
+# Class names
 class_names = ["Female", "Male"]
 
-# تحميل Mediapipe للكشف عن الوجوه
+# Mediapipe for face detection
 mp_face_detection = mp.solutions.face_detection
 face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.7)
 
-# التقاط صورة بالكاميرا
+# Take a photo using camera
 captured_image = st.camera_input("Take a photo")
 
 results = []
 
 if captured_image:
     img = Image.open(captured_image)
-    img_cv = np.array(img.convert("RGB"))  # تحويل الصورة إلى NumPy Array بصيغة RGB
+    img_cv = np.array(img.convert("RGB"))  # Convert image to RGB format
     h, w, _ = img_cv.shape
 
-    # كشف الوجوه في الصورة باستخدام Mediapipe
+    # Detect faces using Mediapipe
     results_faces = face_detection.process(cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR))
 
     num_male = 0
     num_female = 0
 
     if results_faces.detections:
-        faces_list = []  # قائمة لتخزين الوجوه المستخرجة
+        faces_list = []  # List to store extracted faces
         for detection in results_faces.detections:
             bboxC = detection.location_data.relative_bounding_box
             x, y, bw, bh = (int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h))
-            face = img_cv[y:y+bh, x:x+bw]  # استخراج الوجه من الصورة
+            face = img_cv[y:y+bh, x:x+bw]  # Extract face from image
 
-            # التحقق من أن الوجه داخل حدود الصورة
+            # Check if face is within image bounds
             if face.shape[0] > 0 and face.shape[1] > 0:
-                face_pil = Image.fromarray(face).resize((64, 64))  # تغيير الحجم ليتناسب مع مدخلات الموديل
-                face_array = np.array(face_pil).astype("float32") / 255.0  # تطبيع الصورة
+                face_pil = Image.fromarray(face).resize((64, 64))  # Resize to match model input
+                face_array = np.array(face_pil)
+                if face_array.shape[-1] == 4:  # Convert RGBA to RGB
+                    face_array = face_array[..., :3]
+                face_array = face_array.astype("float32") / 255.0
                 face_array = np.expand_dims(face_array, axis=0)
 
-                # تخزين الوجه لمعالجته بعد ذلك
+                # Store face for processing
                 faces_list.append((face_array, x, y, bw, bh))
 
-        # تنفيذ التنبؤ لكل وجه على حدة بعد المعالجة المسبقة
+        # Predict gender for each face
         for face_array, x, y, bw, bh in faces_list:
             prediction = model.predict(face_array)
-            confidence = float(prediction[0][0])
-            predicted_label = class_names[1] if confidence >= 0.5 else class_names[0]
-            confidence = confidence if confidence >= 0.5 else 1 - confidence
+            predicted_label = "Male" if prediction[0][0] >= 0.5 else "Female"
 
-            # عداد الذكور والإناث
+            # Count males and females
             if predicted_label == "Male":
                 num_male += 1
             else:
                 num_female += 1
 
-            # رسم مستطيل حول الوجه مع تصنيف وثقة
+            # Draw rectangle around face with label
             cv2.rectangle(img_cv, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
-            label_text = f"{predicted_label} ({confidence:.2f})"
+            label_text = f"{predicted_label}"
             cv2.putText(img_cv, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # عرض النتائج
+    # Display results
     img_pil = Image.fromarray(img_cv)
     st.image(img_pil, caption=f"Detected: {num_female} Females, {num_male} Males", use_column_width=True)
     st.success(f"Number of Females: {num_female}, Number of Males: {num_male}")
