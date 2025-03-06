@@ -24,15 +24,9 @@ class VideoProcessor(VideoTransformerBase):
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")  # تحويل الإطار إلى numpy array
 
-        # تحويل الصورة إلى PIL
-        img_pil = Image.fromarray(img)
-        img_pil = img_pil.resize((64, 64))  # تغيير الحجم إلى المدخل المطلوب للموديل
-        
-        # تحويل الصورة إلى مصفوفة ومعالجتها
-        img_array = np.array(img_pil)
-        if img_array.shape[-1] == 4:  # إذا كانت RGBA نحولها إلى RGB
-            img_array = img_array[..., :3]
-        img_array = img_array.astype("float32") / 255.0
+        # تصغير الصورة لتسريع المعالجة
+        img_resized = cv2.resize(img, (64, 64))
+        img_array = img_resized.astype("float32") / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
         # تنفيذ التنبؤ
@@ -42,12 +36,7 @@ class VideoProcessor(VideoTransformerBase):
 
         # إضافة النص إلى الصورة
         text = f"{predicted_label}: {confidence:.2f}"
-        font_scale = 1
-        thickness = 2
-        color = (0, 255, 0)
-        
-        import cv2
-        cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
+        cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
@@ -56,11 +45,16 @@ webrtc_streamer(
     key="example",
     mode=WebRtcMode.SENDRECV,
     video_processor_factory=VideoProcessor,
+    async_processing=True,  # تحسين الأداء عبر المعالجة غير المتزامنة
     rtc_configuration={
-        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+            {"urls": ["stun:stun2.l.google.com:19302"]}
+        ]
     },
     media_stream_constraints={
-        "video": {"facingMode": "user"},  # اختيار الكاميرا الأمامية
+        "video": {"width": 640, "height": 480, "facingMode": "user"},  # دعم أبعاد الفيديو المناسبة
         "audio": False  # تعطيل الميكروفون
     }
 )
