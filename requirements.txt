@@ -1,6 +1,6 @@
-streamlit
+streamlit==1.30.0
+tensorflow==2.17.1
 opencv-python-headless
-tensorflow
 numpy
 pandas
 matplotlib
