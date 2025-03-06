@@ -5,7 +5,6 @@ pandas
 scikit-learn
 matplotlib
 Pillow
-numpy
-pandas
+
 
 
