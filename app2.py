@@ -1,89 +1,60 @@
 import streamlit as st
 import cv2
 import numpy as np
-import time
-from tensorflow.keras.models import load_model
+import tensorflow as tf
+from PIL import Image
 
-st.title("Real-Time Gender Classification")
+st.title("Automated Gender Classification Using Facial Recognition")
+st.write("Use your webcam for real-time gender classification.")
 
-# Visitor tracking (simple session counter)
-if 'visited' not in st.session_state:
-    st.session_state.visited = True
-    if 'visitor_count' not in st.session_state:
-        st.session_state.visitor_count = 0
-    st.session_state.visitor_count += 1
-    # (For a global counter, add code to read/write a file or database here)
-st.sidebar.write(f"Visitor Count: {st.session_state.visitor_count}")
+# تحميل الموديل المدرب مسبقًا
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("Model.h5")
 
-# Load the model with a spinner animation
-with st.spinner("Loading gender classification model..."):
-    model = load_model("Model.h5")
+model = load_model()
 
-# Choose input mode
-mode = st.sidebar.selectbox("Input Source", ["Webcam", "Upload Image"])
+# أسماء الفئات
+class_names = ["Female", "Male"]  # يجب أن يكون ترتيبها مطابقًا لترتيب تدريب الموديل
 
-if mode == "Webcam":
-    st.subheader("Webcam Live Feed")
-    start_feed = st.checkbox("Start Webcam")
-    frame_placeholder = st.image([])  # Placeholder for video frames
+# فتح كاميرا الويب
+cap = cv2.VideoCapture(0)
 
-    cap = cv2.VideoCapture(0)
-    # Optionally set resolution: cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640), etc.
+stframe = st.empty()
 
-    while start_feed:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Could not access webcam.")
-            break
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        st.error("Failed to capture image from camera")
+        break
+    
+    # تحويل لون الصورة من BGR إلى RGB (للتوافق مع PIL و TensorFlow)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = Image.fromarray(frame_rgb)
+    img = img.resize((64, 64))  # ضبط الأبعاد حسب متطلبات الموديل
+    
+    # تحويل الصورة إلى مصفوفة
+    img_array = np.array(img)
+    if img_array.shape[-1] == 4:  # تحويل RGBA إلى RGB إن لزم الأمر
+        img_array = img_array[..., :3]
+    img_array = img_array.astype("float32") / 255.0  # تطبيع الصورة
+    img_array = np.expand_dims(img_array, axis=0)  # إضافة بُعد إضافي
+    
+    # تنفيذ التنبؤ
+    prediction = model.predict(img_array)
+    predicted_label = class_names[1] if prediction[0][0] >= 0.5 else class_names[0]
+    confidence = prediction[0][0] if prediction[0][0] >= 0.5 else 1 - prediction[0][0]
+    
+    # إضافة النص إلى الإطار
+    text = f"{predicted_label}: {confidence:.2f}"
+    cv2.putText(frame_rgb, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    
+    # عرض الصورة في Streamlit
+    stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+    
+    # زر لإيقاف البث
+    if st.button("Stop Camera Stream"):
+        break
 
-        # Preprocess frame
-        frame_resized = cv2.resize(frame, (64, 64))
-        frame_norm = frame_resized.astype('float32') / 255.0
-        frame_input = np.expand_dims(frame_norm, axis=0)
-
-        # Predict gender
-        pred = model.predict(frame_input)
-        if pred.shape[1] == 1:  # single output model
-            prob = pred[0][0]
-            label = "Male" if prob > 0.5 else "Female"
-            confidence = prob if prob > 0.5 else 1 - prob
-        else:  # two output model
-            class_idx = int(np.argmax(pred))
-            label = "Male" if class_idx == 1 else "Female"
-            confidence = pred[0][class_idx]
-
-        # Overlay label on frame
-        text = f"{label} ({confidence*100:.1f}%)"
-        cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                    1, (0, 255, 0), 2, cv2.LINE_AA)
-
-        # Show frame in app
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_placeholder.image(frame_rgb, channels="RGB")
-
-        # Throttle the loop
-        time.sleep(0.1)
-    cap.release()
-
-else:  # Upload Image mode
-    st.subheader("Image Upload")
-    uploaded_file = st.file_uploader("Upload an image for classification", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        # Read and decode image
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        # Preprocess image
-        img_resized = cv2.resize(img, (64, 64))
-        img_norm = img_resized.astype('float32') / 255.0
-        img_input = np.expand_dims(img_norm, axis=0)
-        # Predict gender
-        pred = model.predict(img_input)
-        if pred.shape[1] == 1:
-            label = "Male" if pred[0][0] > 0.5 else "Female"
-            conf = pred[0][0] if pred[0][0] > 0.5 else 1 - pred[0][0]
-        else:
-            class_idx = int(np.argmax(pred))
-            label = "Male" if class_idx == 1 else "Female"
-            conf = pred[0][class_idx]
-        # Display result
-        st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=f"Prediction: {label} ({conf*100:.1f}%)", use_column_width=True)
+cap.release()
+st.write("Camera stream stopped.")
