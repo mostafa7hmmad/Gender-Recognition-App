@@ -3,6 +3,7 @@ tensorflow==2.17.1
 opencv-python-headless
 numpy
 pandas
+mediapipe 
 Pillow
 streamlit-webrtc
 av
