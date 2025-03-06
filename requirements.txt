@@ -1,11 +1,8 @@
-opencv-python-headless==4.7.0.72
+
 streamlit==1.30.0
 tensorflow==2.17.1
-numpy
-pandas
-Pillow
-streamlit-webrtc
-av
-mediapipe
-protobuf
-setuptools
+Pillow==9.0.1
+numpy==1.24.0
+tensorflow==2.13.0
+pandas==2.0.2
+
