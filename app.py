@@ -5,7 +5,7 @@ import tensorflow as tf
 import pandas as pd
 
 st.title("Automated Gender Classification Using Facial Recognition")
-st.write("Upload images or use your webcam to predict gender.")
+st.write("Upload images to predict gender.")
 
 # Function to render JavaScript animation
 def render_js_animation():
@@ -94,24 +94,14 @@ uploaded_files = st.file_uploader(
     "Upload one or more images", type=["jpg", "jpeg", "png"], accept_multiple_files=True
 )
 
-# Webcam input for real-time capture
-camera_image = st.camera_input("Or take a photo with your webcam")
-
-# Collect images from uploads and camera
-images_to_classify = []
-if uploaded_files:
-    images_to_classify.extend(uploaded_files)
-if camera_image:
-    images_to_classify.append(camera_image)
-
 results = []
-if images_to_classify:
+if uploaded_files:
     with st.spinner("Classifying images..."):
-        for file in images_to_classify:
+        for file in uploaded_files:
             try:
                 img = Image.open(file)
             except Exception as e:
-                st.error(f"Could not open file {getattr(file, 'name', 'camera_image')}: {e}")
+                st.error(f"Could not open file {getattr(file, 'name', 'unknown')}: {e}")
                 continue
 
             # Resize image
@@ -134,7 +124,7 @@ if images_to_classify:
 
             # Display image and prediction
             st.image(img, caption=f"**Prediction:** {predicted_label}", use_container_width=True)
-            results.append((getattr(file, "name", "camera_image"), predicted_label))
+            results.append((getattr(file, "name", "unknown"), predicted_label))
 
     st.success("Classification completed!")
 
@@ -146,5 +136,3 @@ if images_to_classify:
 
     # Call animation again to indicate completion
     render_js_animation()
-
-
