@@ -1,8 +1,6 @@
-
 streamlit==1.30.0
 tensorflow==2.17.1
-Pillow==9.0.1
-numpy==1.24.0
-tensorflow==2.13.0
+Pillow
+numpy
 pandas==2.0.2
 
