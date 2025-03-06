@@ -52,6 +52,15 @@ class VideoProcessor(VideoTransformerBase):
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # تشغيل البث عبر WebRTC باستخدام الكاميرا الأمامية
-webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_processor_factory=VideoProcessor, rtc_configuration={
-    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-})
+webrtc_streamer(
+    key="example",
+    mode=WebRtcMode.SENDRECV,
+    video_processor_factory=VideoProcessor,
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    },
+    media_stream_constraints={
+        "video": {"facingMode": "user"},  # اختيار الكاميرا الأمامية
+        "audio": False  # تعطيل الميكروفون
+    }
+)
