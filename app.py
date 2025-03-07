@@ -2,29 +2,29 @@ import streamlit as st
 import numpy as np
 import cv2
 import joblib
-import lz4  # Ensure LZ4 is installed
+import lz4
 from PIL import Image
 from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
-import gdown  # Import gdown to download model from Google Drive
+import gdown  # Added for Google Drive download
 
 # 1️⃣ **Load Model and Face Detector Efficiently**
 @st.cache_resource
 def load_model_and_classes():
-    # Download the model from Google Drive
+    # Download model from Google Drive
     file_id = "1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
     url = f"https://drive.google.com/uc?id={file_id}"
     output = "Model_2.h5"
     gdown.download(url, output, quiet=True)
     
-    model = load_model(output)  # Load the trained CNN model from downloaded file
-    class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
-    index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
+    model = load_model(output)  # Load from downloaded file
+    class_idx = np.load("class_indices.npy", allow_pickle=True).item()
+    index_to_class = {v: k for k, v in class_idx.items()}
     return model, index_to_class
 
 @st.cache_resource
 def load_face_detector():
-    return MTCNN()  # Load MTCNN face detector
+    return MTCNN()
 
 model, index_to_class = load_model_and_classes()
 detector = load_face_detector()
@@ -72,20 +72,20 @@ if image_source:
             face_region = img_array[y:y2, x:x2]
 
             # 5️⃣ **Preprocessing for Model**
-            face_resized = cv2.resize(face_region, (64, 64))  # Resize to model input size
-            face_normalized = face_resized.astype("float32") / 255.0  # Normalize
-            face_input = np.expand_dims(face_normalized, axis=0)  # Add batch dimension
+            face_resized = cv2.resize(face_region, (64, 64))
+            face_normalized = face_resized.astype("float32") / 255.0
+            face_input = np.expand_dims(face_normalized, axis=0)
 
             # 6️⃣ **Model Prediction**
-            prediction = model.predict(face_input)[0][0]  # Sigmoid output
-            label_index = 1 if prediction >= 0.5 else 0  # Binary classification
-            confidence = prediction if label_index == 1 else 1 - prediction  # Adjust confidence
+            prediction = model.predict(face_input)[0][0]
+            label_index = 1 if prediction >= 0.5 else 0
+            confidence = prediction if label_index == 1 else 1 - prediction
             label = index_to_class[label_index]
             confidence_percent = confidence * 100
 
-            results.append((label, confidence_percent, (x, y, x2, y2)))
+            results.append((label, confidence_percent, (x, y, x2, y2))
 
-            # **Draw Bounding Box & Label**
+            # Draw Bounding Box & Label
             cv2.rectangle(output_img, (x, y), (x2, y2), (0, 255, 0), 2)
             label_text = f"{label} ({confidence_percent:.1f}%)"
             cv2.putText(output_img, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
