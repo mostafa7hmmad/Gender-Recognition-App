@@ -3,23 +3,21 @@ import numpy as np
 import cv2
 import joblib
 import lz4  # Ensure LZ4 is installed
-import gdown  # For downloading the model from Google Drive
 from PIL import Image
 from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
-import os
+import gdown  # Import gdown to download model from Google Drive
 
-# Google Drive file ID extracted from your link
-GDRIVE_FILE_ID = "1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
-MODEL_PATH = "Model_2.h5"
-
-# 1️⃣ **Download and Load Model Efficiently**
+# 1️⃣ **Load Model and Face Detector Efficiently**
 @st.cache_resource
-def download_and_load_model():
-    if not os.path.exists(MODEL_PATH):
-        gdown.download(f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}", MODEL_PATH, quiet=False)
-
-    model = load_model(MODEL_PATH)  # Load the trained CNN model
+def load_model_and_classes():
+    # Download the model from Google Drive
+    file_id = "1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    output = "Model_2.h5"
+    gdown.download(url, output, quiet=True)
+    
+    model = load_model(output)  # Load the trained CNN model from downloaded file
     class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
     index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
     return model, index_to_class
@@ -28,8 +26,7 @@ def download_and_load_model():
 def load_face_detector():
     return MTCNN()  # Load MTCNN face detector
 
-# Load the model and face detector
-model, index_to_class = download_and_load_model()
+model, index_to_class = load_model_and_classes()
 detector = load_face_detector()
 
 # Set minimum face width threshold
