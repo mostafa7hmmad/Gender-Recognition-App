@@ -6,11 +6,16 @@ import lz4  # Ensure LZ4 is installed
 from PIL import Image
 from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
+import gdown
 
 # 1️⃣ **Load Model and Face Detector Efficiently**
 @st.cache_resource
 def load_model_and_classes():
-    model = load_model("Model_2.h5")  # Load the trained CNN model
+    model_url = "https://drive.google.com/uc?id=1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
+    model_path = "Model_2.h5"
+    gdown.download(model_url, model_path, quiet=False)
+    
+    model = load_model(model_path)  # Load the trained CNN model
     class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
     index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
     return model, index_to_class
