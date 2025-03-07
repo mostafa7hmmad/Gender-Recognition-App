@@ -26,7 +26,8 @@ detector = load_face_detector()
 min_face_width = 39
 
 # 2️⃣ **App UI & Instructions**
-st.title("🎭 Gender Classification App")
+st.title("🎭 Automated-Gender-Classification-Using-Facial-Recognition
+")
 st.write("Upload an image or use your webcam to detect faces and classify gender.")
 st.write("The app will draw a bounding box around detected faces and predict gender with confidence.")
 
