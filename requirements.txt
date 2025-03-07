@@ -6,3 +6,5 @@ Pillow
 mtcnn
 googleapiclient
 tensorflow
+protobuf
+setuptools
