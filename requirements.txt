@@ -1,9 +1,7 @@
 streamlit
-tensorflow
-keras
-mtcnn
 numpy
-pillow
+opencv-python
 gdown
-requests
-opencv-python-headless
+Pillow
+mtcnn
+tensorflow
