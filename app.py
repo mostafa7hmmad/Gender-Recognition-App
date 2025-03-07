@@ -3,30 +3,37 @@ import numpy as np
 import cv2
 import joblib
 import lz4  # Ensure LZ4 is installed
-import requests
 from PIL import Image
 from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
-from io import BytesIO
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from oauth2client.service_account import ServiceAccountCredentials
+import gdown  # Required to download from Google Drive
 
-# 1️⃣ **Download and Load Model from Google Drive**
+# Google Drive file link
+GDRIVE_LINK = "https://drive.google.com/uc?id=1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
+
+# 1️⃣ **Function to Download and Load Model**
 @st.cache_resource
 def load_model_from_drive():
-    model_url = "https://drive.google.com/uc?export=download&id=1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
-    response = requests.get(model_url)
-    with open("Model_2.h5", "wb") as f:
-        f.write(response.content)
-    model = load_model("Model_2.h5")
-    return model
+    model_path = "Model_2.h5"
+    
+    # Download the model if it does not exist
+    try:
+        gdown.download(GDRIVE_LINK, model_path, quiet=False)
+        model = load_model(model_path)
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
+
+    class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
+    index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
+    return model, index_to_class
 
 @st.cache_resource
 def load_face_detector():
     return MTCNN()  # Load MTCNN face detector
 
-model = load_model_from_drive()
+# Load model and detector
+model, index_to_class = load_model_from_drive()
 detector = load_face_detector()
 
 # Set minimum face width threshold
@@ -49,19 +56,6 @@ if image_source:
     image = Image.open(image_source).convert("RGB")
     img_array = np.array(image)  # Convert to NumPy array
 
-    # Save the uploaded image to Google Drive
-    image.save("user_image.jpg")
-    drive_folder_id = "1N7PmIx1hHBlXtYNvi0u2dYK18n5wWtPA"  # Google Drive folder ID
-
-    def upload_to_drive(file_name, folder_id):
-        credentials = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", ["https://www.googleapis.com/auth/drive"])
-        service = build("drive", "v3", credentials=credentials)
-        file_metadata = {"name": file_name, "parents": [folder_id]}
-        media = MediaFileUpload(file_name, mimetype="image/jpeg")
-        service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    
-    upload_to_drive("user_image.jpg", drive_folder_id)
-    
     # 4️⃣ **Face Detection with MTCNN**
     faces = detector.detect_faces(img_array)
 
@@ -91,8 +85,9 @@ if image_source:
 
             # 6️⃣ **Model Prediction**
             prediction = model.predict(face_input)[0][0]  # Sigmoid output
-            label = "Male" if prediction >= 0.5 else "Female"
-            confidence = prediction if prediction >= 0.5 else 1 - prediction  # Adjust confidence
+            label_index = 1 if prediction >= 0.5 else 0  # Binary classification
+            confidence = prediction if label_index == 1 else 1 - prediction  # Adjust confidence
+            label = index_to_class[label_index]
             confidence_percent = confidence * 100
 
             results.append((label, confidence_percent, (x, y, x2, y2)))
@@ -107,7 +102,7 @@ if image_source:
         else:
             # Convert image back to RGB for Streamlit
             output_img = cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB)
-            st.image(output_img, caption="🔍 Detected Faces with Gender Classification", use_container_width=True)
+            st.image(output_img, caption="🔍 Detected Faces with Gender Classification",  use_container_width=True)
 
             # 7️⃣ **Display Classification Results**
             for i, (label, confidence, _) in enumerate(results, 1):
