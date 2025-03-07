@@ -6,11 +6,18 @@ import lz4  # Ensure LZ4 is installed
 from PIL import Image
 from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
+import gdown  # Import gdown to download model from Google Drive
 
 # 1️⃣ **Load Model and Face Detector Efficiently**
 @st.cache_resource
 def load_model_and_classes():
-    model = load_model("Model_2.h5")  # Load the trained CNN model
+    # Download the model from Google Drive
+    file_id = "1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    output = "Model_2.h5"
+    gdown.download(url, output, quiet=True)
+    
+    model = load_model(output)  # Load the trained CNN model from downloaded file
     class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
     index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
     return model, index_to_class
@@ -23,10 +30,10 @@ model, index_to_class = load_model_and_classes()
 detector = load_face_detector()
 
 # Set minimum face width threshold
-min_face_width = 36
+min_face_width = 39
 
 # 2️⃣ **App UI & Instructions**
-st.title("🎭 Automated-Gender-Classification-Using-Facial-Recognition")
+st.title("🎭 Gender Classification App")
 st.write("Upload an image or use your webcam to detect faces and classify gender.")
 st.write("The app will draw a bounding box around detected faces and predict gender with confidence.")
 
