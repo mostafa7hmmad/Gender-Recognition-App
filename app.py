@@ -1,93 +1,87 @@
 import streamlit as st
 import numpy as np
-import tensorflow as tf
 import cv2
+import joblib
+import lz4  # Ensure LZ4 is installed
 from PIL import Image
+from mtcnn import MTCNN
+from tensorflow.keras.models import load_model
 
-# Load CNN Model
-@st.cache_resource  # Keeps model in memory for efficiency
-def load_model():
-    return tf.keras.models.load_model("Model_1.h5")
+# 1️⃣ **Load Model and Face Detector Efficiently**
+@st.cache_resource
+def load_model_and_classes():
+    model = load_model("Model_2.h5")  # Load the trained CNN model
+    class_idx = np.load("class_indices.npy", allow_pickle=True).item()  # Load class labels
+    index_to_class = {v: k for k, v in class_idx.items()}  # Map indices to class labels
+    return model, index_to_class
 
-model = load_model()
+@st.cache_resource
+def load_face_detector():
+    return MTCNN()  # Load MTCNN face detector
 
-# Preprocessing Function (64x64 normalization)
-def preprocess_image(image):
-    image = image.resize((64, 64))  # Resize to model's input size
-    image = np.array(image) / 255.0  # Normalize pixel values
-    image = np.expand_dims(image, axis=0)  # Add batch dimension
-    return image
+model, index_to_class = load_model_and_classes()
+detector = load_face_detector()
 
-# **1. Image Upload and Classification**
-st.title("Gender Classification with CNN")
+# 2️⃣ **App UI & Instructions**
+st.title("🎭 Gender Classification App")
+st.write("Upload an image or use your webcam to detect faces and classify gender.")
+st.write("The app will draw a bounding box around detected faces and predict gender with confidence.")
 
-uploaded_files = st.file_uploader("Upload Images", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
-if uploaded_files:
-    st.subheader("Results")
-    for file in uploaded_files:
-        image = Image.open(file)
-        processed_img = preprocess_image(image)
-        
-        # Prediction
-        prediction = model.predict(processed_img)[0][0]
-        label = "Male" if prediction >= 0.5 else "Female"
-        
-        # Display Image & Corrected Classification Result
-        st.image(image, caption=f"Classified as: {label}", width=150)
-        st.write(f"**{file.name} - {label}**")  # ✅ FIXED: Shows only Male or Female
+# 3️⃣ **User Input: Upload or Capture Image**
+uploaded_file = st.file_uploader("📤 Upload an image", type=["jpg", "jpeg", "png"])
+camera_image = st.camera_input("📷 Or capture an image using your webcam")
 
-# **2. Capture Photo from Webcam for Classification**
-st.subheader("Take a Photo for Classification")
-captured_image = st.camera_input("Capture a photo")
+# Determine the source of the image
+image_source = camera_image if camera_image is not None else uploaded_file
 
-if captured_image:
-    st.subheader("Processing Captured Photo...")
+if image_source:
+    # Read image
+    image = Image.open(image_source).convert("RGB")
+    img_array = np.array(image)  # Convert to NumPy array
 
-    # Convert the captured image to a PIL Image
-    image = Image.open(captured_image)
+    # 4️⃣ **Face Detection with MTCNN**
+    faces = detector.detect_faces(img_array)
 
-    # Convert image to OpenCV format for face detection
-    image_cv = np.array(image)
-    image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2BGR)  # Convert RGB -> BGR for OpenCV
-
-    # Load Face Detector
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-
-    # Convert to grayscale for detection
-    gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-    # If no faces detected, show warning
-    if len(faces) == 0:
-        st.warning("No faces detected! Please take another photo.")
+    if not faces:
+        st.error("🚨 No faces detected. Please upload a clear image with visible faces.")
     else:
-        male_count, female_count = 0, 0
+        output_img = img_array.copy()
+        output_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2BGR)  # Convert for OpenCV
 
-        # Loop through detected faces
-        for (x, y, w, h) in faces:
-            face = image_cv[y:y+h, x:x+w]  # Crop face
-            face = cv2.resize(face, (64, 64))  # Resize to model's input size
-            face = face / 255.0  # Normalize
-            face = np.expand_dims(face, axis=0)  # Reshape for model
+        results = []  # Store classification results
+        for i, face in enumerate(faces):
+            x, y, width, height = face["box"]
+            x, y, x2, y2 = max(0, x), max(0, y), x + width, y + height
 
-            # Predict Gender
-            prediction = model.predict(face)[0][0]
-            label = "Male" if prediction >= 0.5 else "Female"
+            # Extract face ROI
+            face_region = img_array[y:y2, x:x2]
 
-            # Count Male/Female
-            if label == "Male":
-                male_count += 1
-            else:
-                female_count += 1
+            # 5️⃣ **Preprocessing for Model**
+            face_resized = cv2.resize(face_region, (64, 64))  # Resize to model input size
+            face_normalized = face_resized.astype("float32") / 255.0  # Normalize
+            face_input = np.expand_dims(face_normalized, axis=0)  # Add batch dimension
 
-            # Draw bounding box around face
-            color = (255, 0, 0) if label == "Male" else (0, 0, 255)
-            cv2.rectangle(image_cv, (x, y), (x+w, y+h), color, 2)
-            cv2.putText(image_cv, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+            # 6️⃣ **Model Prediction**
+            prediction = model.predict(face_input)[0][0]  # Sigmoid output
+            label_index = 1 if prediction >= 0.5 else 0  # Binary classification
+            confidence = prediction if label_index == 1 else 1 - prediction  # Adjust confidence
+            label = index_to_class[label_index]
+            confidence_percent = confidence * 100
 
-        # Convert back to RGB for displaying
-        image_cv = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
-        st.image(image_cv, caption="Processed Image with Face Classification", use_column_width=True)
+            results.append((label, confidence_percent, (x, y, x2, y2)))
 
-        # Show Gender Counts
-        st.success(f"**Detected Males: {male_count}, Females: {female_count}**")
+            # **Draw Bounding Box & Label**
+            cv2.rectangle(output_img, (x, y), (x2, y2), (0, 255, 0), 2)
+            label_text = f"{label} ({confidence_percent:.1f}%)"
+            cv2.putText(output_img, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # Convert image back to RGB for Streamlit
+        output_img = cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB)
+        st.image(output_img, caption="🔍 Detected Faces with Gender Classification", use_column_width=True)
+
+        # 7️⃣ **Display Classification Results**
+        for i, (label, confidence, _) in enumerate(results, 1):
+            st.write(f"**👤 Face {i}: {label}** – {confidence:.2f}% confidence")
+
+else:
+    st.info("📢 Please upload or capture an image to begin.")
