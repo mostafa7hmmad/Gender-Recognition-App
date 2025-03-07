@@ -1,5 +1,9 @@
 streamlit
 tensorflow
-cv2
+keras
+mtcnn
 numpy
-pandas 
+opencv-python
+pillow
+joblib
+lz4
