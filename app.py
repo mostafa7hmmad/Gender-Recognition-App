@@ -1,5 +1,7 @@
 import streamlit as st
 import numpy as np
+import os
+os.system("pip install opencv-python-headless==4.7.0.72")
 import cv2
 import gdown  # To download model from Google Drive
 from PIL import Image, ExifTags
