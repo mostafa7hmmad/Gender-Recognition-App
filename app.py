@@ -9,7 +9,7 @@ from tensorflow.keras.models import load_model
 # 🔽 **Download Model from Google Drive**
 @st.cache_resource
 def load_model_from_drive():
-    url = "https://drive.google.com/uc?id=YOUR_FILE_ID"  # Replace with correct FILE_ID
+    url = "https://drive.google.com/file/d/1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB/view?usp=drive_link"  # Replace with correct FILE_ID
     output = "Model_2.h5"
     gdown.download(url, output, quiet=False)
 
