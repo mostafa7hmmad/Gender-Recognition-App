@@ -5,5 +5,5 @@ mtcnn
 numpy
 opencv-python
 pillow
-joblib
-lz4
+gdown
+requests
