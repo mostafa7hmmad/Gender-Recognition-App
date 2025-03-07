@@ -45,6 +45,7 @@ image_source = camera_image if camera_image is not None else uploaded_file
 if use_live_cam:
     st.write("Starting Live Camera... Press 'Stop' to end.")
     cap = cv2.VideoCapture(0)
+    frame_placeholder = st.empty()
     
     while cap.isOpened():
         ret, frame = cap.read()
@@ -76,7 +77,7 @@ if use_live_cam:
             label_text = f"{label} ({confidence_percent:.1f}%)"
             cv2.putText(frame, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-        st.image(frame, caption="🔍 Live Face Detection", channels="BGR")
+        frame_placeholder.image(frame, channels="BGR")
     
     cap.release()
     cv2.destroyAllWindows()
