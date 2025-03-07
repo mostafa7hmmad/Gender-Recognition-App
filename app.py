@@ -8,7 +8,7 @@ from mtcnn import MTCNN
 from tensorflow.keras.models import load_model
 import gdown  # Required to download from Google Drive
 
-# Google Drive file link
+
 GDRIVE_LINK = "https://drive.google.com/uc?id=1yV06WrDAoUbZGKTDIw45D3uP3C3ZxNJB"
 
 # 1️⃣ **Function to Download and Load Model**
