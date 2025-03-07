@@ -31,64 +31,63 @@ if uploaded_files:
         # Prediction
         prediction = model.predict(processed_img)[0][0]
         label = "Male" if prediction >= 0.5 else "Female"
-        prob = round(prediction * 100, 2)
         
-        # Display Image & Classification
-        st.image(image, caption=f"{label} ({prob}%)", width=150)
-        st.write(f"**{file.name} - {label} ({prob}%)**")
+        # Display Image & Corrected Classification Result
+        st.image(image, caption=f"Classified as: {label}", width=150)
+        st.write(f"**{file.name} - {label}**")  # ✅ FIXED: Shows only Male or Female
 
-# **2. Live Webcam Face Detection & Classification**
-st.subheader("Live Camera Classification")
-use_camera = st.checkbox("Use Webcam")
+# **2. Capture Photo from Webcam for Classification**
+st.subheader("Take a Photo for Classification")
+captured_image = st.camera_input("Capture a photo")
 
-if use_camera:
-    # OpenCV Video Capture
-    cap = cv2.VideoCapture(0)
+if captured_image:
+    st.subheader("Processing Captured Photo...")
+
+    # Convert the captured image to a PIL Image
+    image = Image.open(captured_image)
+
+    # Convert image to OpenCV format for face detection
+    image_cv = np.array(image)
+    image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2BGR)  # Convert RGB -> BGR for OpenCV
+
+    # Load Face Detector
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("Could not access webcam.")
-            break
+    # Convert to grayscale for detection
+    gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
-        # Convert frame to grayscale for face detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
+    # If no faces detected, show warning
+    if len(faces) == 0:
+        st.warning("No faces detected! Please take another photo.")
+    else:
         male_count, female_count = 0, 0
 
+        # Loop through detected faces
         for (x, y, w, h) in faces:
-            face = frame[y:y+h, x:x+w]  # Extract face
-            face = cv2.resize(face, (64, 64))  # Resize for model
+            face = image_cv[y:y+h, x:x+w]  # Crop face
+            face = cv2.resize(face, (64, 64))  # Resize to model's input size
             face = face / 255.0  # Normalize
             face = np.expand_dims(face, axis=0)  # Reshape for model
 
-            # Prediction
+            # Predict Gender
             prediction = model.predict(face)[0][0]
             label = "Male" if prediction >= 0.5 else "Female"
-            color = (255, 0, 0) if label == "Male" else (0, 0, 255)
 
-            # Count Males & Females
+            # Count Male/Female
             if label == "Male":
                 male_count += 1
             else:
                 female_count += 1
 
-            # Draw bounding box and label
-            cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-            cv2.putText(frame, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+            # Draw bounding box around face
+            color = (255, 0, 0) if label == "Male" else (0, 0, 255)
+            cv2.rectangle(image_cv, (x, y), (x+w, y+h), color, 2)
+            cv2.putText(image_cv, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
-        # Show Video Frame in Streamlit
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, channels="RGB", use_column_width=True)
+        # Convert back to RGB for displaying
+        image_cv = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
+        st.image(image_cv, caption="Processed Image with Face Classification", use_column_width=True)
 
-        # Show Count Results
-        st.write(f"**Male: {male_count}, Female: {female_count}**")
-
-        # Exit Webcam on 'q' Key Press
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+        # Show Gender Counts
+        st.success(f"**Detected Males: {male_count}, Females: {female_count}**")
