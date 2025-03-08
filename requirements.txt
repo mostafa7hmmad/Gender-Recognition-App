@@ -6,3 +6,4 @@ Pillow
 mtcnn
 tensorflow
 setuptools
+PyGithub
