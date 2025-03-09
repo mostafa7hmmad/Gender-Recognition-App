@@ -31,7 +31,7 @@ model, index_to_class = load_model_and_classes()
 detector = load_face_detector()
 
 # Set minimum face width threshold
-min_face_width = 30
+min_face_width = 35
 
 # 2️⃣ **App UI & Instructions**
 st.title("🎭 Gender Classification App")
