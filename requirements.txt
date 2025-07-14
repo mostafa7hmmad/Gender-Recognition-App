@@ -1,0 +1,9 @@
+streamlit
+numpy
+opencv-python
+gdown
+Pillow
+mtcnn==0.1.0
+tensorflow==2.12.0
+setuptools
+PyGithub
